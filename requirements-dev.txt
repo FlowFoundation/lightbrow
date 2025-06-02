@@ -1,0 +1,7 @@
+# Requirements for development
+pytest>=7.0.0
+build
+twine
+flake8
+black
+isort

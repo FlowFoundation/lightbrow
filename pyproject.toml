@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lightbrow"
+version = "0.1.0"
+description = "A Fast and S3 or other cloud storage compatible browser application"
+readme = "README.md"
+authors = [
+    {name = "FlowFoundation Team", email = "lytran14789@gmail.com"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "dash>=3.0.0",
+    "dash_mantine_components==1.3.0",
+    "boto3>=1.38.0",
+    "jupyter-dash>=0.4.2",
+    "ipython>=7.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "build",
+    "twine",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/FlowFoundation/lightbrow"
+"Bug Tracker" = "https://github.com/FlowFoundation/lightbrow/issues"
+
+# Configuration for pytest
+[tool.pytest]
+testpaths = ["lightbrow/tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+# Configuration for black
+[tool.black]
+line-length = 88
+target-version = ['py39']
+include = '\.pyi?$'
+
+# Configuration for isort
+[tool.isort]
+profile = "black"
+line_length = 88
