@@ -8,6 +8,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions: # Add this block
+      id-token: write # And this line
     steps:
     - uses: actions/checkout@v3
     
