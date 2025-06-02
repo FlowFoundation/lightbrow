@@ -2,32 +2,10 @@ import unittest
 import os
 from enum import Enum
 from typing import List, Dict, Any, Tuple, Optional, Set
-from lightbrow.connectors.base import FileItem, AccessError, AccessLevel
+from lightbrow.connectors.base import FileItem, AccessError, AccessLevel, BaseConnector
 # --- Minimal recreations of assumed lightbrow base/data structures ---
 # (In a real scenario, these would be imported from your lightbrow library)
 
-
-class BaseConnector:
-    """Abstract base class for connectors."""
-    def __init__(self, default_prefix: str = "", auth_config: Optional[Dict[str, Any]] = None):
-        self.default_prefix = default_prefix
-        self.auth_config = auth_config
-        self._path_index: Dict[str, Dict[str, FileItem]] = {} # bucket_name -> {path: FileItem}
-
-    async def list_items(self, path: str = "", bucket_name: Optional[str] = None) -> List[FileItem]:
-        # If bucket_name is provided, path should be relative to the bucket.
-        # If not, path might be a full path including bucket, or connector specific.
-        raise NotImplementedError("Connectors must implement list_items.")
-
-    async def get_item_info(self, path: str, bucket_name: Optional[str] = None) -> Optional[FileItem]:
-        raise NotImplementedError("Connectors must implement get_item_info.")
-
-    async def check_access(self, path: str, bucket_name: Optional[str] = None) -> AccessLevel:
-        raise NotImplementedError("Connectors must implement check_access.")
-
-    def get_path_index_for_bucket(self, bucket_name: str) -> Dict[str, FileItem]:
-        """Returns the path index for a specific bucket."""
-        return self._path_index.get(bucket_name, {})
 
 # --- Actual lightbrow imports (replace with your actual module paths) ---
 # from lightbrow.connectors.s3connector import S3Connector # Assuming this path
@@ -38,135 +16,13 @@ class BaseConnector:
 # If S3Connector, S3Browser, SimpleSearch are not found, the test will use these mocks.
 # In a real test environment, you'd import the actual classes.
 
-try:
-    from lightbrow.connectors import S3Connector # Try to import actual
-    from lightbrow.connectors.s3connector import S3Connector as S3ConnectorReal # Alias for clarity
-except ImportError:
-    print("Warning: S3Connector not found. Using mock S3Connector for tests.")
-    class S3Connector(BaseConnector): # Mock S3Connector
-        def __init__(self, auth_config: Optional[Dict[str, Any]] = None, default_prefix: str = "s3://"):
-            super().__init__(default_prefix=default_prefix, auth_config=auth_config)
-            # Basic check for auth_config if provided
-            if auth_config:
-                if not auth_config.get('endpoint_url') and not (auth_config.get('access_key') and auth_config.get('secret_key')):
-                    # This mock doesn't try to connect, just checks structure
-                    pass # print("Mock S3Connector initialized with potentially incomplete AWS-style auth (no endpoint)")
-                elif auth_config.get('endpoint_url') and not (auth_config.get('access_key') and auth_config.get('secret_key')):
-                    pass # print("Warning: Mock S3Connector endpoint_url provided but missing access/secret keys for MinIO-style auth.")
-            # print(f"Mock S3Connector initialized with prefix: {self.default_prefix}")
+from lightbrow.connectors import S3Connector # Try to import actual
+from lightbrow.connectors.s3connector import S3Connector as S3ConnectorReal # Alias for clarity
+from lightbrow.browsers.s3browser import S3Browser
 
-        async def list_items(self, path: str = "", bucket_name: Optional[str] = None) -> List[FileItem]:
-            # This mock doesn't implement listing, real S3Connector would.
-            # For TestS3Connector, we're primarily testing initialization.
-            # The search tests will use a more detailed MockConnectorSync.
-            if bucket_name and bucket_name in self._path_index:
-                return list(self._path_index[bucket_name].values())
-            return []
-    S3ConnectorReal = S3Connector # Use the mock if real one isn't available
+from lightbrow.search_engines import SimpleSearch
+from lightbrow.search_engines import SimpleSearch as SimpleSearchReal # Alias
 
-try:
-    from lightbrow.browsers.s3browser import S3Browser
-except ImportError:
-    print("Warning: S3Browser not found. Using mock S3Browser for tests.")
-    class S3Browser: # Mock S3Browser
-        def __init__(self, bucket_connector_pairs: List[Tuple[str, BaseConnector]], max_depth: Optional[int] = None):
-            self.bucket_connectors: Dict[str, BaseConnector] = {}
-            if not isinstance(bucket_connector_pairs, list):
-                raise TypeError("bucket_connector_pairs must be a list of tuples.")
-            for name, connector in bucket_connector_pairs:
-                if not isinstance(name, str) or not isinstance(connector, BaseConnector):
-                    raise TypeError("Each item in bucket_connector_pairs must be a (str, BaseConnector) tuple.")
-                self.bucket_connectors[name] = connector
-            self.max_depth = max_depth
-            # print(f"Mock S3Browser initialized with {len(self.bucket_connectors)} bucket(s).")
-
-        def run(self, debug: bool = False):
-            print(f"Mock S3Browser run called (debug={debug}).")
-            # In a real app, this would start a server (e.g., Uvicorn).
-            pass
-
-try:
-    from lightbrow.search_engines import SimpleSearch
-    from lightbrow.search_engines.simple_search import SimpleSearch as SimpleSearchReal # Alias
-except ImportError:
-    print("Warning: SimpleSearch not found. Using mock SimpleSearch for tests.")
-    import re
-    class SimpleSearch: # Mock SimpleSearch
-        def __init__(self, connector: BaseConnector):
-            if not isinstance(connector, BaseConnector):
-                raise TypeError("Connector must be an instance of BaseConnector.")
-            self.connector = connector
-            # print("Mock SimpleSearch initialized.")
-
-        def _compile_search_regex(self, query: str) -> re.Pattern:
-            # Simplified regex compilation from your example logic
-            if query == "*": return re.compile(".*")
-            if query.startswith("<s>") and query.endswith("<e>"):
-                pattern = query[3:-3]
-                pattern = pattern.replace("*", ".*").replace("?", ".?")
-                return re.compile(f"^{re.escape(self.connector.default_prefix or '')}{pattern}$")
-            elif query.startswith("<s>"):
-                pattern = query[3:]
-                pattern = pattern.replace("*", ".*").replace("?", ".?")
-                return re.compile(f"^{re.escape(self.connector.default_prefix or '')}{pattern}")
-            elif query.endswith("<e>"):
-                pattern = query[:-3]
-                pattern = pattern.replace("*", ".*").replace("?", ".?")
-                return re.compile(f"{pattern}$")
-            else:
-                pattern = query.replace("*", ".*").replace("?", ".?")
-                return re.compile(f".*{pattern}.*")
-
-
-        def search(self, query: str, bucket_name: str, search_path_prefix: Optional[str] = None) -> List[FileItem]:
-            results = []
-            regex = self._compile_search_regex(query)
-            # print(f"Mock SimpleSearch: Searching with regex: {regex.pattern} in bucket '{bucket_name}' with prefix '{search_path_prefix}'")
-            
-            items_in_bucket = self.connector.get_path_index_for_bucket(bucket_name)
-
-            full_prefix_path = ""
-            if search_path_prefix:
-                # Assuming search_path_prefix is relative to bucket and doesn't include bucket name or s3://
-                # And items_in_bucket keys are full paths like s3://bucket/prefix/file.txt
-                # We need to construct the part of the path that SimpleSearch expects for matching.
-                # The provided example suggests items_in_bucket are keyed by full S3 path.
-                # And prefix_key in main_test_logic is part of the path after bucket.
-                # e.g., bucket="testbucket", prefix_key="foo/"
-                # path_to_match_against = "s3://testbucket/foo/" + item_relative_to_prefix
-                # The logic in the original SimpleSearch might be more nuanced with default_prefix.
-                # This mock simplifies based on observing the test_queries and item paths.
-                full_prefix_path = f"{self.connector.default_prefix}{bucket_name}/"
-                if search_path_prefix and not search_path_prefix.endswith('/'):
-                    full_prefix_path += search_path_prefix + '/' # Ensure trailing slash for prefix
-                elif search_path_prefix:
-                     full_prefix_path += search_path_prefix
-            
-            # print(f"  Full prefix path for filtering: {full_prefix_path}")
-
-            for path, item in items_in_bucket.items():
-                path_to_test = path # By default, test the full path of the item
-
-                if search_path_prefix:
-                    # If searching within a prefix, the query should apply to the path *relative* to that prefix,
-                    # OR the query is an absolute path query (<s>...<e>) that already includes the prefix.
-                    if not path.startswith(full_prefix_path):
-                        continue # Item is not under the search_path_prefix
-
-                    if not (query.startswith("<s>") and self.connector.default_prefix in query):
-                        # If query is not absolute, make path_to_test relative for matching
-                        # e.g. path = "s3://testbucket/foo/bar.txt", full_prefix_path = "s3://testbucket/foo/"
-                        # path_to_test should become "bar.txt" for query "bar.txt"
-                         path_to_test = path[len(full_prefix_path):]
-                         # if path_to_test is empty string (e.g. prefix itself is an item), this is fine.
-                
-                # print(f"  Testing item: {item.path}, path_to_test for regex: '{path_to_test}'")
-                if regex.search(path_to_test):
-                    results.append(item)
-            
-            # print(f"  Mock SimpleSearch found {len(results)} items.")
-            return results
-    SimpleSearchReal = SimpleSearch # Use the mock if real one isn't available
 
 # --- Helper Mock Connector for Search Tests ---
 class MockConnectorSync(BaseConnector): # Synchronous version for test
