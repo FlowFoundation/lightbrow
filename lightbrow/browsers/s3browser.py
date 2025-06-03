@@ -16,7 +16,13 @@ class S3Browser:
     """Main S3 Browser Dash application."""
     
     def __init__(self, bucket_connector_pairs: List[Tuple[str, BaseConnector]], max_depth: Optional[int] = None, debug: bool = False):
-        
+        # raise ValueError if bucket_connector_pairs wrong type
+        if not isinstance(bucket_connector_pairs, list) or not all(isinstance(pair, tuple) and len(pair) == 2 for pair in bucket_connector_pairs):
+            raise ValueError("bucket_connector_pairs must be a list of tuples (bucket_name, BaseConnector instance).")
+        if not all(isinstance(c, BaseConnector) for _, c in bucket_connector_pairs):
+            raise ValueError("All items in bucket_connector_pairs must be tuples of (bucket_name, BaseConnector instance).")
+        if max_depth is not None and (not isinstance(max_depth, int) or max_depth < 0):
+            raise ValueError("max_depth must be a non-negative integer or None.")
         self.bucket_connector_pairs = bucket_connector_pairs
         self.max_depth = max_depth
         self.connectors = {b: c for b, c in bucket_connector_pairs} if bucket_connector_pairs else {}
@@ -142,9 +148,9 @@ class S3Browser:
                 )
             ]
         )
-        connector = self.connectors.get(initial_bucket, None) 
-        if connector:
-            connector.start_background_indexing(initial_bucket, self.max_depth) # Start indexing for the initial bucket
+        # connector = self.connectors.get(initial_bucket, None) 
+        # if connector:
+        #     connector.start_background_indexing(initial_bucket, self.max_depth) # Start indexing for the initial bucket
 
     def _setup_callbacks(self):
         clientside_callback(

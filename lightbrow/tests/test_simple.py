@@ -98,7 +98,9 @@ class MockConnectorSync(BaseConnector): # Synchronous version for test
     def get_path_index_for_bucket(self, bucket_name: str) -> Dict[str, FileItem]:
         return self._path_index.get(bucket_name, {})
     def start_background_indexing(self, bucket, max_depth = None):
-        return super().start_background_indexing(bucket, max_depth)
+        a = 2 # Placeholder for background indexing, not used in tests
+        # In a real implementation, this would start an async task to index the bucket.
+        
 
 # --- Unit Test Classes ---
 
