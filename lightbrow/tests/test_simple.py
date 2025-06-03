@@ -163,7 +163,7 @@ class TestS3Browser(unittest.TestCase):
         ]
         browser = S3Browser(bucket_connector_pairs=pairs, max_depth=5)
         self.assertIsInstance(browser, S3Browser)
-        self.assertEqual(len(browser.onnectors), 2)
+        self.assertEqual(len(browser.connectors), 2)
         self.assertIn('bucket1', browser.connectors)
         self.assertIn('anotherbucket', browser.connectors)
         self.assertIs(browser.connectors['bucket1'], self.mock_connector_s3)
