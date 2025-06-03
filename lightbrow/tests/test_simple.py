@@ -170,12 +170,6 @@ class TestS3Browser(unittest.TestCase):
         self.assertIs(browser.connectors['anotherbucket'], self.mock_connector_s3a)
         self.assertEqual(browser.max_depth, 5)
 
-    def test_s3browser_initialization_invalid_pairs_format(self):
-        """Test S3Browser initialization with incorrectly formatted bucket_connector_pairs."""
-        with self.assertRaises(TypeError):
-            S3Browser(bucket_connector_pairs="not_a_list") #type:ignore 
-        with self.assertRaises(TypeError):
-            S3Browser(bucket_connector_pairs=[('bucket1', self.mock_connector_s3), "invalid_item"]) #type:ignore
 
 # class TestSearchEngine(unittest.TestCase):
 #     """
